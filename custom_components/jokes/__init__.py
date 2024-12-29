@@ -75,13 +75,16 @@ class JokeUpdateCoordinator(DataUpdateCoordinator):
                 'User-Agent': 'Jokes custom integration for Home Assistant (https://github.com/LaggAt/ha-jokes)'
             }
             async with aiohttp.ClientSession() as session:
-                async with session.get('https://icanhazdadjoke.com/', headers=headers) as resp:
-                    if resp.status == 200:
-                        json = await resp.json()
-                        #set_joke(self._hass, json["joke"])
-                        # return the joke object
-                        return json
-                    else:
-                        raise UpdateFailed(f"Response status code: {resp.status}")
+                for _ in range(0, 10):
+                    async with session.get('https://icanhazdadjoke.com/', headers=headers) as resp:
+                        if resp.status == 200:
+                            json = await resp.json()
+                            if "joke" not in json or len(json["joke"]) > 255:
+                                continue
+                            # return the joke object
+                            return json
+                        else:
+                            raise UpdateFailed(f"Response status code: {resp.status}")
+                raise UpdateFailed(f"Could not get joke after 10 tries")
         except Exception as ex:
             raise UpdateFailed from ex
