@@ -50,18 +50,18 @@ class JokesFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_reconfigure(self, user_input: dict[str, Any] | None = None):
         """Show config Form step."""
         if user_input is None:
-
             return self.async_show_form(
                 step_id="reconfigure",
                 data_schema=self.DATA_SCHEMA,
             )
+        if len(user_input["name"]) > 0:
+            name = user_input["name"]
         else:
-            if len(user_input["name"]) > 0:
-                name = user_input["name"]
-            else:
-                name = DEFAULT_NAME
+            name = DEFAULT_NAME
 
-            return self.async_create_entry(
-                title=name,
-                data=user_input,
-            )
+        return self.async_update_reload_and_abort(
+            self._get_reconfigure_entry(),
+            data_updates=user_input,
+        )
+
+            
