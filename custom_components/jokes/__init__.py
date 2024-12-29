@@ -39,12 +39,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         hass,
         _LOGGER,
         entry,
-        update_interval=timedelta(seconds=60)
+        update_interval=timedelta(seconds=entry.data["update_interval"])
     )
     await coordinator.async_refresh()
     
     hass.data[DOMAIN] = {
-        "coordinator": coordinator
+        "coordinator": coordinator,
+        "config": entry,
     }
     
     hass.async_create_task(async_load_platform(hass, "sensor", DOMAIN, {}, entry))
@@ -57,7 +58,8 @@ class JokeUpdateCoordinator(DataUpdateCoordinator):
         """Initialize global data updater."""
         logger.debug("__init__")
 
-        self._attr_unique_id = "joke" + entry.entry_id
+        self._attr_unique_id = "joke" + entry.entry_id + "_" + entry.title
+        self._name = entry.title
 
         super().__init__(
             hass,
@@ -79,7 +81,10 @@ class JokeUpdateCoordinator(DataUpdateCoordinator):
             }
             async with aiohttp.ClientSession() as session:
                 for _ in range(0, 10):
-                    async with session.get('https://icanhazdadjoke.com/', headers=headers) as resp:
+                    async with session.get(
+                            'https://icanhazdadjoke.com/',
+                            headers=headers
+                    ) as resp:
                         if resp.status == 200:
                             json = await resp.json()
                             if "joke" not in json or len(json["joke"]) > 255:
