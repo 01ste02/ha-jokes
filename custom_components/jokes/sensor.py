@@ -1,60 +1,93 @@
 """Joke Sensor."""
 
-from .const import DOMAIN
-from homeassistant import core
+from .const import DOMAIN, MAX_STATE_JOKE_LENGTH
+from .coordinator import JokeUpdateCoordinator
+from homeassistant.core import callback, HomeAssistant
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.helpers.update_coordinator import CoordinatorEntity, DataUpdateCoordinator
+from homeassistant.components.sensor import SensorEntity
+from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers.update_coordinator import (
+    CoordinatorEntity,
+    DataUpdateCoordinator
+)
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
+import logging
 
-async def async_setup_platform(
-    hass: core.HomeAssistant, config, async_add_entities, discovery_info=None
+_LOGGER = logging.getLogger(__name__)
+
+async def async_setup_entry(
+        hass: HomeAssistant,
+        config_entry: ConfigEntry,
+        async_add_entities: AddEntitiesCallback,
+        discovery_info=None
 ):
-    """Setup the sensor platform."""
-    coordinator = hass.data[DOMAIN]["coordinator"]
-    config_entry = hass.data[DOMAIN]["config"]
-    async_add_entities([JokeEntity(coordinator, config_entry)], True)
+    """Setup the sensors."""
+    coordinator = hass.data[DOMAIN][
+        config_entry.entry_id
+    ]["coordinator"]
 
-class JokeEntity(CoordinatorEntity):
+    async_add_entities([JokeEntity(coordinator, coordinator.data)])
+
+    
+class JokeEntity(CoordinatorEntity, SensorEntity):
     """Dummy entity to trigger updates."""
 
     _attr_icon = "mdi:emoticon-excited-outline"
 
-    def __init__(self, coordinator: DataUpdateCoordinator, config: ConfigEntry):
+    def __init__(self, coordinator: JokeUpdateCoordinator, device):
         """Pass coordinator to CoordinatorEntity."""
         super().__init__(coordinator)
-        self._name = "sensor.random_joke"
-        self.config = config
+        
+        self.device = device
+        self.device_id = device["id"]
 
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Update sensor with latest data from coordinator."""
+        # This method is called by DataUpdateCoordinator when a successful update runs.
+        self.device = self.coordinator.data
+        _LOGGER.debug("Device: %s", self.device)
+        self.async_write_ha_state()
+
+
+    @property
+    def device_info(self) -> DeviceInfo:
+        """Return device information."""
+        return DeviceInfo(
+            name=f"RandomJoke{self.device['device_id']}",
+            manufacturer="LaggAt",
+            model="Random Joke",
+            sw_version="0.0.1",
+            identifiers={
+                (
+                    DOMAIN,
+                    f"{self.device['device_id']}",
+                )
+            },
+        )
+
+
+    @property
+    def name(self) -> str:
+        """Return the name of the sensor."""
+        return self.device["name"]
+
+    
     @property
     def unique_id(self) -> str:
-        """Return the unique ID of the sensor."""
-        return self.coordinator._attr_unique_id
+        """Return unique id."""
+        return f"{DOMAIN}-{self.device['uid']}"
 
-    @property
-    def entity_id(self):
-        """Return the entity id of the sensor."""
-        return self._name
-
-    @entity_id.setter
-    def entity_id(self, value):
-        """Sets the entity id of the sensor."""
-        self._name = value
-
-    @property
-    def name(self):
-        """Return the name of the sensor."""
-        return self.config.data["name"]
-
-    @name.setter
-    def name(self, value):
-        """Sets the name of the sensor."""
-        self.config.data["name"] = value
-
+    
     @property
     def state(self):
         """Return the state of the sensor."""
         # Cut off joke at joke_length chars... Full joke exists in extra attributes
-        return self.coordinator.data["joke"][:self.config.data["joke_length"]]
+        cutoff = min(MAX_STATE_JOKE_LENGTH, self.coordinator.joke_length)
+        return self.device["state"]["joke"][:cutoff]
 
+    
     @property
     def extra_state_attributes(self):
-        return self.coordinator.data
+        return self.device["state"]

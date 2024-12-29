@@ -1,108 +1,71 @@
 """Provides random jokes."""
 
-from .const import DOMAIN
+from .const import (
+    DOMAIN,
+    DEFAULT_NAME,
+    DEFAULT_UPDATE_INTERVAL,
+    DEFAULT_JOKE_LENGTH,
+)
+from .coordinator import JokeUpdateCoordinator
 import aiohttp
 import asyncio
 from datetime import timedelta
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import callback, HomeAssistant
+from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.const import Platform
 from homeassistant.helpers.discovery import async_load_platform
+from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 import logging
 
 _LOGGER = logging.getLogger(__name__)
 
-# def set_joke(hass: HomeAssistant, text: str):
-#     """Helper function to set the random joke."""
-#     _LOGGER.debug("set_joke")
-#     hass.states.async_set("jokes.random_joke", text)
 
 def setup(hass: HomeAssistant, config: dict):
     """This setup does nothing, we use the async setup."""
     _LOGGER.debug("setup")
     return True
 
+
 async def async_setup(hass: HomeAssistant, config: dict):
     """Setup from configuration.yaml."""
     _LOGGER.debug("async_setup")
-    
-    #`config` is the full dict from `configuration.yaml`.
-    #set_joke(hass, "")
-
     return True
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
+
+async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
     """Setup from Config Flow Result."""
     _LOGGER.debug("async_setup_entry")
     
     coordinator = JokeUpdateCoordinator(
         hass,
-        _LOGGER,
-        entry,
-        update_interval=timedelta(seconds=entry.data["update_interval"])
+        config_entry
     )
-    await coordinator.async_refresh()
+
+    # Perform initial data load from API
+    await coordinator.async_config_entry_first_refresh()
+
+    if not coordinator.api_connected:
+        raise ConfigEntryNotReady
+
+    # Add listener to enable reconfiguration
+    update_listener = config_entry.add_update_listener(_async_update_listener)
     
-    hass.data[DOMAIN] = {
+    hass.data[DOMAIN][config_entry.entry_id] = {
         "coordinator": coordinator,
-        "config": entry,
+        "update_listener": update_listener,
     }
-    
-    await hass.config_entries.async_forward_entry_setups(entry, Platform.SENSOR)
-    entry.async_on_unload(entry.add_update_listener(update_listener))
+
+    # Setup platforms
+    await hass.config_entries.async_forward_entry_setups(config_entry, Platform.SENSOR)
     
     return True
 
-async def update_listener(hass: HomeAssistant, config_entry: ConfigEntry) -> None:
+
+async def _async_update_listener(hass: HomeAssistant, config_entry: ConfigEntry) -> None:
     """Handle options update."""
     await hass.config_entries.async_reload(config_entry.entry_id)
-
-class JokeUpdateCoordinator(DataUpdateCoordinator):
-    """Update handler."""
-
-    def __init__(self, hass, logger, entry, update_interval=None):
-        """Initialize global data updater."""
-        logger.debug("__init__")
-
-        self._attr_unique_id = "joke" + entry.entry_id + "_" + entry.title
-        self._name = entry.title
-
-        super().__init__(
-            hass,
-            logger,
-            name=DOMAIN,
-            update_interval=update_interval,
-            update_method=self._async_update_data,
-        )
-        
-    async def _async_update_data(self):
-        """Fetch a random joke."""
-        self.logger.debug("_async_update_data")
-        
-        #get a random joke (finally)
-        try:
-            headers = {
-                'Accept': 'application/json',
-                'User-Agent': 'Jokes custom integration for Home Assistant (https://github.com/LaggAt/ha-jokes)'
-            }
-            async with aiohttp.ClientSession() as session:
-                for _ in range(0, 10):
-                    async with session.get(
-                            'https://icanhazdadjoke.com/',
-                            headers=headers
-                    ) as resp:
-                        if resp.status == 200:
-                            json = await resp.json()
-                            if "joke" not in json or len(json["joke"]) > 255:
-                                continue
-                            # return the joke object
-                            return json
-                        else:
-                            raise UpdateFailed(f"Response status code: {resp.status}")
-                raise UpdateFailed(f"Could not get joke after 10 tries")
-        except Exception as ex:
-            raise UpdateFailed from ex
 
 
 async def async_migrate_entry(hass, config_entry: ConfigEntry):
@@ -137,11 +100,31 @@ async def async_migrate_entry(hass, config_entry: ConfigEntry):
 
     return True
 
-async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Unload a config entry."""
-    unload_ok = await hass.config_entries.async_unload_platforms(entry, DOMAIN)
 
-    # Pop add-on data
-    hass.data.pop(DOMAIN, None)
+async def async_remove_config_entry_device(
+    hass: HomeAssistant, config_entry: ConfigEntry, device_entry: DeviceEntry
+) -> bool:
+    """Delete device if selected from UI."""
+    # Adding this function shows the delete device option in the UI.
+    # Remove this function if you do not want that option.
+    # You may need to do some checks here before allowing devices to be removed.
+    return True
+
+
+async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
+    """Unload a config entry."""
+    # This is called when you remove your integration or shutdown HA.
+
+    # Remove the config options update listener
+    hass.data[DOMAIN][config_entry.entry_id]["update_listener"]()
+
+    # Unload platforms
+    unload_ok = await hass.config_entries.async_unload_platforms(
+        config_entry, Platform.SENSOR
+    )
+
+    # Remove the config entry from the hass data object.
+    if unload_ok:
+        hass.data[DOMAIN].pop(config_entry.entry_id)
 
     return unload_ok
