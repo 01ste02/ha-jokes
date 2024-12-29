@@ -34,7 +34,7 @@ class JokesFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is None:
             return self.async_show_form(
                 step_id="user",
-                data_schema=DATA_SCHEMA,
+                data_schema=self.DATA_SCHEMA,
             )
         else:
             if len(user_input["name"]) > 0:
@@ -53,7 +53,7 @@ class JokesFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
 
             return self.async_show_form(
                 step_id="reconfigure",
-                data_schema=DATA_SCHEMA,
+                data_schema=self.DATA_SCHEMA,
             )
         else:
             if len(user_input["name"]) > 0:
