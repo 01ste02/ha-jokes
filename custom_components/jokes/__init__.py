@@ -1,4 +1,16 @@
 """Provides random jokes."""
+from datetime import timedelta
+import logging
+import asyncio
+import aiohttp
+
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import callback, HomeAssistant
+from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.const import Platform
+from homeassistant.helpers.discovery import async_load_platform
+from homeassistant.helpers.device_registry import DeviceEntry
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import (
     DOMAIN,
@@ -7,37 +19,13 @@ from .const import (
     DEFAULT_JOKE_LENGTH,
 )
 from .coordinator import JokeUpdateCoordinator
-import aiohttp
-import asyncio
-from datetime import timedelta
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import callback, HomeAssistant
-from homeassistant.exceptions import ConfigEntryNotReady
-from homeassistant.const import Platform
-from homeassistant.helpers.discovery import async_load_platform
-from homeassistant.helpers.device_registry import DeviceEntry
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
-import logging
 
 _LOGGER = logging.getLogger(__name__)
-
-
-def setup(hass: HomeAssistant, config: dict):
-    """This setup does nothing, we use the async setup."""
-    _LOGGER.debug("setup")
-    return True
-
-
-async def async_setup(hass: HomeAssistant, config: dict):
-    """Setup from configuration.yaml."""
-    _LOGGER.debug("async_setup")
-    return True
-
 
 async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
     """Setup from Config Flow Result."""
     _LOGGER.debug("async_setup_entry")
-    
+
     coordinator = JokeUpdateCoordinator(
         hass,
         config_entry
@@ -51,7 +39,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
 
     # Add listener to enable reconfiguration
     update_listener = config_entry.add_update_listener(_async_update_listener)
-    
+
     hass.data[DOMAIN][config_entry.entry_id] = {
         "coordinator": coordinator,
         "update_listener": update_listener,
@@ -59,7 +47,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
 
     # Setup platforms
     await hass.config_entries.async_forward_entry_setups(config_entry, Platform.SENSOR)
-    
+
     return True
 
 
@@ -102,12 +90,10 @@ async def async_migrate_entry(hass, config_entry: ConfigEntry):
 
 
 async def async_remove_config_entry_device(
-    hass: HomeAssistant, config_entry: ConfigEntry, device_entry: DeviceEntry
+    _hass: HomeAssistant, _config_entry: ConfigEntry, _device_entry: DeviceEntry
 ) -> bool:
     """Delete device if selected from UI."""
     # Adding this function shows the delete device option in the UI.
-    # Remove this function if you do not want that option.
-    # You may need to do some checks here before allowing devices to be removed.
     return True
 
 
