@@ -96,3 +96,36 @@ class JokeUpdateCoordinator(DataUpdateCoordinator):
                 raise UpdateFailed(f"Could not get joke after 10 tries")
         except Exception as ex:
             raise UpdateFailed from ex
+
+
+async def async_migrate_entry(hass, config_entry: ConfigEntry):
+    """Migrate old entry."""
+    # From home assistant developer documentation
+    _LOGGER.debug("Migrating configuration from version %s.%s",
+                  config_entry.version,
+                  config_entry.minor_version
+                  )
+
+    if config_entry.version > 1:
+        # This means the user has downgraded from a future version
+        return False
+
+    if config_entry.version == 1:
+        new_data = {**config_entry.data}
+        if config_entry.minor_version < 1:
+            new_data["name"] = DEFAULT_NAME
+            new_data["update_interval"] = DEFAULT_UPDATE_INTERVAL
+            new_data["joke_length"] = DEFAULT_JOKE_LENGTH
+
+            hass.config_entries.async_update_entry(
+                config_entry,
+                data=new_data,
+                minor_version=1,
+                version=1
+            )
+
+    _LOGGER.debug("Migration to configuration version %s.%s successful",
+                  config_entry.version,
+                  config_entry.minor_version)
+
+    return True
