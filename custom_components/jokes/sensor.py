@@ -53,7 +53,7 @@ class JokeEntity(CoordinatorEntity):
     def state(self):
         """Return the state of the sensor."""
         # Cut off joke at joke_length chars... Full joke exists in extra attributes
-        return self.coordinator.data["joke"][:self.config["joke_length"]]
+        return self.coordinator.data["joke"][:self.config.data["joke_length"]]
 
     @property
     def extra_state_attributes(self):
