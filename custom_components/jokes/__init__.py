@@ -38,6 +38,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     coordinator = JokeUpdateCoordinator(
         hass,
         _LOGGER,
+        entry,
         update_interval=timedelta(seconds=60)
     )
     await coordinator.async_refresh()
@@ -52,9 +53,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 class JokeUpdateCoordinator(DataUpdateCoordinator):
     """Update handler."""
 
-    def __init__(self, hass, logger, update_interval=None):
+    def __init__(self, hass, logger, entry, update_interval=None):
         """Initialize global data updater."""
         logger.debug("__init__")
+
+        self._attr_unique_id = "joke" + entry.entry_id
 
         super().__init__(
             hass,
