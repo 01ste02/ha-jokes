@@ -6,6 +6,7 @@ import asyncio
 from datetime import timedelta
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import callback, HomeAssistant
+from homeassistant.const import Platform
 from homeassistant.helpers.discovery import async_load_platform
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 import logging
@@ -48,8 +49,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         "config": entry,
     }
     
-    hass.async_create_task(async_load_platform(hass, "sensor", DOMAIN, {}, entry))
+    await hass.config_entries.async_forward_entry_setups(entry, Platform.SENSOR)
+    entry.async_on_unload(entry.add_update_listener(update_listener))
+    
     return True
+
+async def update_listener(hass: HomeAssistant, config_entry: ConfigEntry) -> None:
+    """Handle options update."""
+    await hass.config_entries.async_reload(config_entry.entry_id)
 
 class JokeUpdateCoordinator(DataUpdateCoordinator):
     """Update handler."""
