@@ -13,10 +13,17 @@ from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import (
+    CONF_UPDATE_INTERVAL,
+    CONF_DEVICENAME,
+    CONF_NAME,
+    CONF_NUM_TRIES,
+    CONF_JOKE_LENGTH,
     DOMAIN,
     DEFAULT_NAME,
     DEFAULT_UPDATE_INTERVAL,
     DEFAULT_JOKE_LENGTH,
+    DEFAULT_DEVICENAME,
+    DEFAULT_RETRIES,
 )
 from .coordinator import JokeUpdateCoordinator
 
@@ -71,16 +78,20 @@ async def async_migrate_entry(hass, config_entry: ConfigEntry):
     if config_entry.version == 1:
         new_data = {**config_entry.data}
         if config_entry.minor_version < 1:
-            new_data["name"] = DEFAULT_NAME
-            new_data["update_interval"] = DEFAULT_UPDATE_INTERVAL
-            new_data["joke_length"] = DEFAULT_JOKE_LENGTH
+            new_data[CONF_NAME] = DEFAULT_NAME
+            new_data[CONF_UPDATE_INTERVAL] = DEFAULT_UPDATE_INTERVAL
+            new_data[CONF_JOKE_LENGTH] = DEFAULT_JOKE_LENGTH
 
-            hass.config_entries.async_update_entry(
-                config_entry,
-                data=new_data,
-                minor_version=1,
-                version=1
-            )
+        if config_entry.minor_version < 3:
+            new_data[CONF_DEVICENAME] = DEFAULT_DEVICENAME
+            new_data[CONF_NUM_TRIES] = DEFAULT_RETRIES
+
+        hass.config_entries.async_update_entry(
+            config_entry,
+            data=new_data,
+            minor_version=3,
+            version=1
+        )
 
     _LOGGER.debug("Migration to configuration version %s.%s successful",
                   config_entry.version,

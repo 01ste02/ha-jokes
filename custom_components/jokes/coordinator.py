@@ -48,12 +48,14 @@ class JokeUpdateCoordinator(DataUpdateCoordinator):
         )
 
         # Get the update interval and ensure that it is not too small
-        self.update_interval = max(
-            config_entry.options.get(
-                CONF_UPDATE_INTERVAL,
-                DEFAULT_UPDATE_INTERVAL
-            ),
-            MIN_UPDATE_INTERVAL
+        self.update_interval = timedelta(
+            seconds=max(
+                config_entry.options.get(
+                    CONF_UPDATE_INTERVAL,
+                    DEFAULT_UPDATE_INTERVAL
+                ),
+                MIN_UPDATE_INTERVAL
+            )
         )
 
         self.retries = max(
