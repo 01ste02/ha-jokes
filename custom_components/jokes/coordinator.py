@@ -1,5 +1,6 @@
 """Provides the coordinator for the joke integration."""
 import logging
+from datetime import timedelta
 import aiohttp
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from .const import (
