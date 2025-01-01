@@ -33,6 +33,8 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
     """Setup from Config Flow Result."""
     _LOGGER.debug("async_setup_entry")
 
+    hass.data.setdefault(DOMAIN, {})
+
     coordinator = JokeUpdateCoordinator(
         hass,
         config_entry
